@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CreatorLaunch – Login / Sign up</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Poppins,system-ui,sans-serif;min-height:100vh;display:grid;place-items:center;padding:20px;color:#fff;background:radial-gradient(circle at 75% 20%,#4c1d95 0,#12072a 45%,#07040f 85%)}
+.box{width:100%;max-width:420px;background:#ffffff0f;border:1px solid #ffffff22;border-radius:24px;padding:30px;backdrop-filter:blur(10px);box-shadow:0 20px 60px #0008}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:22px;justify-content:center;margin-bottom:6px}
+.logo i{font-style:normal;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#7c3aed);display:grid;place-items:center;font-size:16px}
+.logo b{color:#c4a5ff}
+.sub{text-align:center;color:#ddd3f5;font-size:14px;margin-bottom:22px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:#00000040;border-radius:999px;padding:4px;margin-bottom:20px}
+.tabs button{border:0;background:none;color:#ddd3f5;padding:10px;border-radius:999px;font:600 14px Poppins,sans-serif;cursor:pointer}
+.tabs button.on{background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff}
+label{display:block;font-size:13px;margin:12px 0 6px;color:#e8defc}
+input{width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid #ffffff30;background:#00000040;color:#fff;font:15px Poppins,sans-serif}
+input:focus{outline:none;border-color:#a855f7}
+.btn{width:100%;margin-top:20px;padding:14px;border:0;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;font:600 15px Poppins,sans-serif;cursor:pointer;box-shadow:0 8px 24px #7c3aed66}
+.btn:disabled{opacity:.6;cursor:wait}
+.link{background:none;border:0;color:#c4a5ff;font:13px Poppins,sans-serif;cursor:pointer;margin-top:14px;display:block;width:100%;text-align:center}
+.msg{margin-top:16px;padding:12px 14px;border-radius:12px;font-size:13px;display:none}
+.msg.err{display:block;background:#e11d4833;border:1px solid #e11d48}
+.msg.ok{display:block;background:#22c55e33;border:1px solid #22c55e}
+.hide{display:none}
+input.code{text-align:center;font-size:28px;letter-spacing:12px;font-weight:600}
+.back{display:block;text-align:center;margin-top:18px;color:#ddd3f5;font-size:13px;text-decoration:none}
+.me{text-align:center}.me h2{margin:10px 0}.me p{color:#ddd3f5;font-size:14px;word-break:break-all}
+:focus-visible{outline:3px solid #ffc329;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="box">
+<div class="logo"><i>▶</i>Creator<b>Launch</b></div>
+
+<div id="authView">
+<p class="sub" id="sub">Welcome back! Log in to continue.</p>
+<div class="tabs" role="tablist">
+<button id="tLogin" class="on" type="button">Log in</button>
+<button id="tSignup" type="button">Sign up</button>
+</div>
+<form id="form" novalidate>
+<div id="nameRow" class="hide"><label for="name">Full name</label><input id="name" autocomplete="name" placeholder="Tunde Ade"></div>
+<label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+<div id="passRow"><label for="pass">Password</label><input id="pass" type="password" autocomplete="current-password" placeholder="At least 6 characters" minlength="6" required></div>
+<button class="btn" id="go" type="submit">Log in</button>
+</form>
+<button class="link" id="forgot" type="button">Forgot password?</button>
+<div id="msg" class="msg" role="alert"></div>
+<a class="back" href="index.html">← Back to home</a>
+</div>
+
+<div id="verifyView" class="hide">
+<p class="sub">We sent a 6-digit code to<br><b id="vEmail"></b></p>
+<form id="vForm" novalidate>
+<label for="code">Verification code</label>
+<input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" pattern="[0-9]{6}">
+<button class="btn" id="vGo" type="submit">Verify &amp; continue</button>
+</form>
+<button class="link" id="resend" type="button">Resend code</button>
+<button class="link" id="vBack" type="button">← Use a different email</button>
+<div id="vMsg" class="msg" role="alert"></div>
+</div>
+
+<div id="dashView" class="me hide">
+<p class="sub">You’re logged in 🎉</p>
+<h2 id="hello">Welcome!</h2>
+<p id="who"></p>
+<button class="btn" id="out" type="button">Log out</button>
+<a class="back" href="index.html">← Back to home</a>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://ovhlchyuzmdtqpfeyngg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ixL06NJ_XsulKFDMvgShAA_HzbVSnWI";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+let mode = "login";
+
+function say(text, type){ const m=$("msg"); m.textContent=text||""; m.className="msg"+(text?" "+type:""); }
+function setMode(m){
+  mode=m; say("");
+  $("tLogin").classList.toggle("on", m==="login");
+  $("tSignup").classList.toggle("on", m==="signup");
+  $("nameRow").classList.toggle("hide", m!=="signup");
+  $("go").textContent = m==="login" ? "Log in" : "Create account";
+  $("sub").textContent = m==="login" ? "Welcome back! Log in to continue." : "Create your free account to start learning.";
+  $("pass").autocomplete = m==="login" ? "current-password" : "new-password";
+  $("forgot").classList.toggle("hide", m!=="login");
+}
+$("tLogin").onclick=()=>setMode("login");
+$("tSignup").onclick=()=>setMode("signup");
+
+function showUser(user){
+  const loggedIn = !!user;
+  if(loggedIn) $("verifyView").classList.add("hide");
+  $("authView").classList.toggle("hide", loggedIn || !$("verifyView").classList.contains("hide"));
+  $("dashView").classList.toggle("hide", !loggedIn);
+  if(user){
+    const n = user.user_metadata && user.user_metadata.full_name;
+    $("hello").textContent = n ? "Welcome, "+n+"!" : "Welcome!";
+    $("who").textContent = user.email;
+  }
+}
+
+$("form").addEventListener("submit", async e=>{
+  e.preventDefault(); say("");
+  const email=$("email").value.trim(), password=$("pass").value;
+  if(!email){ return say("Enter your email address.","err"); }
+  if(password.length<6){ return say("Password must be at least 6 characters.","err"); }
+  const btn=$("go"); btn.disabled=true;
+  try{
+    if(mode==="login"){
+      const {data,error}=await sb.auth.signInWithPassword({email,password});
+      if(error) throw error;
+      showUser(data.user);
+    }else{
+      const {data,error}=await sb.auth.signUp({
+        email,password,
+        options:{ data:{ full_name:$("name").value.trim() }, emailRedirectTo: location.href.split("#")[0] }
+      });
+      if(error) throw error;
+      if(data.session){ showUser(data.user); }
+      else if(data.user && data.user.identities && data.user.identities.length===0){
+        say("An account with this email already exists. Please log in.","err");
+      }
+      else{ showVerify(email); }
+    }
+  }catch(err){ say(err.message||"Something went wrong. Try again.","err"); }
+  btn.disabled=false;
+});
+
+$("forgot").onclick=async()=>{
+  const email=$("email").value.trim();
+  if(!email) return say("Enter your email above, then tap Forgot password.","err");
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href.split("#")[0]});
+  say(error?error.message:"Password reset link sent. Check your email.", error?"err":"ok");
+};
+
+let pendingEmail="";
+function vsay(text,type){ const m=$("vMsg"); m.textContent=text||""; m.className="msg"+(text?" "+type:""); }
+function showVerify(email){
+  pendingEmail=email; $("vEmail").textContent=email; vsay("");
+  $("authView").classList.add("hide"); $("verifyView").classList.remove("hide");
+  $("code").value=""; $("code").focus();
+}
+$("code").addEventListener("input",e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,6); });
+$("vForm").addEventListener("submit",async e=>{
+  e.preventDefault(); vsay("");
+  const token=$("code").value;
+  if(token.length!==6) return vsay("Enter the 6-digit code from your email.","err");
+  $("vGo").disabled=true;
+  const {data,error}=await sb.auth.verifyOtp({email:pendingEmail,token,type:"signup"});
+  $("vGo").disabled=false;
+  if(error) return vsay(error.message,"err");
+  $("verifyView").classList.add("hide"); showUser(data.user);
+});
+let cool=0;
+$("resend").onclick=async()=>{
+  if(cool>0) return;
+  const {error}=await sb.auth.resend({type:"signup",email:pendingEmail});
+  if(error) return vsay(error.message,"err");
+  vsay("A new code was sent.","ok");
+  cool=60; const b=$("resend");
+  const t=setInterval(()=>{ cool--; b.textContent=cool>0?"Resend code ("+cool+"s)":"Resend code"; if(cool<=0) clearInterval(t); },1000);
+};
+$("vBack").onclick=()=>{ $("verifyView").classList.add("hide"); $("authView").classList.remove("hide"); setMode("signup"); };
+
+$("out").onclick=async()=>{ await sb.auth.signOut(); showUser(null); setMode("login"); };
+
+sb.auth.getSession().then(({data})=>showUser(data.session&&data.session.user));
+sb.auth.onAuthStateChange((_e,session)=>showUser(session&&session.user));
+</script>
+</body>
+</html>
