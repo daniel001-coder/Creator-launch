@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>Admin Panel</h1><p class="sub">Everything users see on the site is controlled from here.</p>
+<div id="toast" class="msg ok" hidden></div>
+<div class="tabs"><button data-tab="settings" class="on">Settings</button><button data-tab="live">Live classes</button><button data-tab="courses">Courses</button><button data-tab="users">Users</button></div>
+
+<div id="t_settings"><section class="card f"><h2>Payment</h2>
+<label>Fee (₦)</label><input id="s_amt" type="number" min="100"><label>Access length (days)</label><input id="s_days" type="number" min="1">
+<h2 style="margin-top:22px">Announcement banner</h2>
+<label><input id="s_show" type="checkbox">Show to all users</label><label>Message</label><input id="s_ann" maxlength="200">
+<h2 style="margin-top:22px">Affiliate</h2>
+<label>Commission (%)</label><input id="s_com" type="number" min="0" max="100"><label>Description</label><input id="s_atx" maxlength="200">
+<button class="btn" id="s_save" type="button" style="margin-top:20px">Save settings</button></section></div>
+
+<div id="t_live" hidden><section class="card f"><h2 id="l_h">Add live class</h2>
+<label>Title</label><input id="l_title"><label>Description</label><input id="l_desc"><label>Date &amp; time (your local time)</label><input id="l_when" type="datetime-local"><label>Join link (Zoom / Meet / YouTube)</label><input id="l_link" placeholder="https://">
+<label><input id="l_pub" type="checkbox" checked>Published</label>
+<button class="btn" id="l_save" type="button" style="margin-top:14px">Save class</button> <button class="btn sm red" id="l_cancel" type="button" hidden>Cancel edit</button></section>
+<section class="card"><h2>Scheduled classes</h2><div id="l_list"></div></section></div>
+
+<div id="t_courses" hidden><section class="card f"><h2 id="c_h">Add course</h2>
+<label>Title</label><input id="c_title"><label>Description</label><input id="c_desc"><label>Order (small number shows first)</label><input id="c_ord" type="number" value="0">
+<label>Lessons, one per line: Title | https://link</label><textarea id="c_les" rows="6" placeholder="Intro | https://youtube.com/..."></textarea>
+<label><input id="c_pub" type="checkbox" checked>Published</label>
+<button class="btn" id="c_save" type="button" style="margin-top:14px">Save course</button> <button class="btn sm red" id="c_cancel" type="button" hidden>Cancel edit</button></section>
+<section class="card"><h2>Courses</h2><div id="c_list"></div></section></div>
+
+<div id="t_users" hidden><section class="card f"><h2>Users</h2><input id="u_q" placeholder="Search name or email…"><div id="u_list" style="margin-top:10px"></div></section></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+const $$=s=>document.querySelectorAll(s),tabs=["settings","live","courses","users"];
+const toast=(m,ok=true)=>{const e=$("toast");e.className="msg "+(ok?"ok":"err");e.textContent=m;e.hidden=false;scrollTo(0,0);setTimeout(()=>e.hidden=true,3500);};
+const loc=iso=>{const d=new Date(iso);return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
+const show=t=>{tabs.forEach(x=>$("t_"+x).hidden=x!==t);$$("[data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));};
+$$("[data-tab]").forEach(b=>b.onclick=()=>show(b.dataset.tab));
+let LIVE=[],COURSES=[],USERS=[],editL=null,editC=null;
+
+boot({page:"admin",paid:false,admin:true}).then(c=>{
+ if(!c)return;
+ const S=c.settings,P=S.pricing||{},N=S.announcement||{},A=S.affiliate||{};
+ $("s_amt").value=P.amount_naira??2000;$("s_days").value=P.days??30;$("s_show").checked=!!N.show;$("s_ann").value=N.text||"";$("s_com").value=A.commission??50;$("s_atx").value=A.text||"";
+ $("s_save").onclick=async()=>{
+  const amt=+$("s_amt").value,days=+$("s_days").value;
+  if(!(amt>=100)||!(days>=1))return toast("Enter a valid fee and number of days.",false);
+  const {error}=await sb.from("site_settings").upsert([
+   {key:"pricing",value:{amount_naira:amt,days}},
+   {key:"announcement",value:{show:$("s_show").checked,text:$("s_ann").value.trim()}},
+   {key:"affiliate",value:{commission:+$("s_com").value||0,text:$("s_atx").value.trim()}}]);
+  toast(error?error.message:"Settings saved.",!error);};
+ loadLive();loadCourses();loadUsers();});
+
+/* ---- live classes ---- */
+async function loadLive(){const {data}=await sb.from("live_classes").select("*").order("starts_at");LIVE=data||[];
+ $("l_list").innerHTML=LIVE.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${esc(new Date(x.starts_at).toLocaleString())}</small></span><span class="acts"><button class="btn sm" data-le="${x.id}">Edit</button><button class="btn sm red" data-ld="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No classes yet.</p>";}
+$("l_save").onclick=async()=>{
+ if(!$("l_title").value.trim()||!$("l_when").value)return toast("Title and date/time are required.",false);
+ const row={title:$("l_title").value.trim(),description:$("l_desc").value.trim(),starts_at:new Date($("l_when").value).toISOString(),link:$("l_link").value.trim(),published:$("l_pub").checked};
+ const {error}=editL?await sb.from("live_classes").update(row).eq("id",editL):await sb.from("live_classes").insert(row);
+ if(error)return toast(error.message,false);toast("Class saved.");resetL();loadLive();};
+function resetL(){editL=null;["l_title","l_desc","l_when","l_link"].forEach(i=>$(i).value="");$("l_pub").checked=true;$("l_h").textContent="Add live class";$("l_cancel").hidden=true;}
+$("l_cancel").onclick=resetL;
+$("l_list").onclick=async e=>{const b=e.target;
+ if(b.dataset.le){const x=LIVE.find(y=>y.id===b.dataset.le);editL=x.id;$("l_title").value=x.title;$("l_desc").value=x.description||"";$("l_when").value=loc(x.starts_at);$("l_link").value=x.link||"";$("l_pub").checked=x.published;$("l_h").textContent="Edit live class";$("l_cancel").hidden=false;scrollTo(0,0);}
+ if(b.dataset.ld&&confirm("Delete this class?")){const {error}=await sb.from("live_classes").delete().eq("id",b.dataset.ld);if(error)toast(error.message,false);loadLive();}};
+
+/* ---- courses ---- */
+async function loadCourses(){const {data}=await sb.from("courses").select("*").order("sort_order");COURSES=data||[];
+ $("c_list").innerHTML=COURSES.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${(x.lessons||[]).length} lessons</small></span><span class="acts"><button class="btn sm" data-ce="${x.id}">Edit</button><button class="btn sm red" data-cd="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No courses yet.</p>";}
+$("c_save").onclick=async()=>{
+ if(!$("c_title").value.trim())return toast("Course title is required.",false);
+ const lessons=$("c_les").value.split("\n").map(l=>l.split("|")).filter(p=>p[0].trim()).map(p=>({title:p[0].trim(),url:(p[1]||"").trim()}));
+ const row={title:$("c_title").value.trim(),description:$("c_desc").value.trim(),sort_order:+$("c_ord").value||0,lessons,published:$("c_pub").checked};
+ const {error}=editC?await sb.from("courses").update(row).eq("id",editC):await sb.from("courses").insert(row);
+ if(error)return toast(error.message,false);toast("Course saved.");resetC();loadCourses();};
+function resetC(){editC=null;["c_title","c_desc","c_les"].forEach(i=>$(i).value="");$("c_ord").value=0;$("c_pub").checked=true;$("c_h").textContent="Add course";$("c_cancel").hidden=true;}
+$("c_cancel").onclick=resetC;
+$("c_list").onclick=async e=>{const b=e.target;
+ if(b.dataset.ce){const x=COURSES.find(y=>y.id===b.dataset.ce);editC=x.id;$("c_title").value=x.title;$("c_desc").value=x.description||"";$("c_ord").value=x.sort_order;$("c_les").value=(x.lessons||[]).map(l=>l.title+" | "+l.url).join("\n");$("c_pub").checked=x.published;$("c_h").textContent="Edit course";$("c_cancel").hidden=false;scrollTo(0,0);}
+ if(b.dataset.cd&&confirm("Delete this course?")){const {error}=await sb.from("courses").delete().eq("id",b.dataset.cd);if(error)toast(error.message,false);loadCourses();}};
+
+/* ---- users ---- */
+async function loadUsers(){const {data,error}=await sb.rpc("admin_list_users");if(error)return toast(error.message,false);USERS=data||[];drawUsers();}
+function drawUsers(){const q=$("u_q").value.toLowerCase(),now=new Date();
+ $("u_list").innerHTML=USERS.filter(u=>(u.email+" "+(u.full_name||"")).toLowerCase().includes(q)).map(u=>{
+  const on=u.expires_at&&new Date(u.expires_at)>now;
+  return `<div class="item"><span><b>${esc(u.full_name||"(no name)")}</b> ${on?"✅":"⛔"}<small>${esc(u.email)} · ${on?"active until "+fmt(u.expires_at):u.expires_at?"expired "+fmt(u.expires_at):"never paid"}</small></span>
+  <span class="acts"><button class="btn sm" data-ug="${u.user_id}">Grant days</button><button class="btn sm red" data-ur="${u.user_id}">Remove</button></span></div>`;}).join("")||"<p class='note'>No users found.</p>";}
+$("u_q").oninput=drawUsers;
+$("u_list").onclick=async e=>{const b=e.target;let id=b.dataset.ug||b.dataset.ur,days;if(!id)return;
+ if(b.dataset.ug){days=parseInt(prompt("Give how many days of access (from today)?","30"),10);if(!(days>0))return;}
+ else{if(!confirm("Remove this user's access now?"))return;days=0;}
+ const {error}=await sb.rpc("admin_set_access",{p_user:id,p_days:days});
+ toast(error?error.message:"Access updated.",!error);loadUsers();};
+</script></body></html>

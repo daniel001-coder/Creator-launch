@@ -6,23 +6,23 @@
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
 <section class="card hello"><h1 id="hi">Welcome back!</h1><p class="sub">Keep building your channel today.</p></section>
-<div class="stats">
-<div class="card stat"><b>Active</b><span>Account status</span></div>
-<div class="card stat"><b>3</b><span>Courses enrolled</span></div>
-<div class="card stat"><b>24</b><span>Lessons completed</span></div>
-<div class="card stat"><b>$0</b><span>Affiliate earnings</span></div></div>
-<section class="card live"><h2>Next Live Class</h2><p>Every Saturday, 8:00 PM (WAT)<br><b id="cd"></b></p><a class="btn gold" href="live.html">View details →</a></section>
-<section class="card"><h2>Continue learning</h2><div class="row"><span>YouTube Automation: Zero to Profit</span><small>65%</small></div><div class="track"><i style="width:65%"></i></div><a class="btn" href="courses.html">Go to courses</a>
-<p class="note">Stats and progress are sample data until you add real course tables.</p></section>
+<div class="stats"><div class="card stat"><b>Active</b><span>Account status</span></div><div class="card stat"><b id="nc">–</b><span>Courses available</span></div><div class="card stat"><b id="nl">–</b><span>Upcoming live classes</span></div></div>
+<section class="card live"><h2>Next Live Class</h2><div id="next"><p>Loading…</p></div><a class="btn gold" href="live.html">All classes →</a></section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-boot({page:"dashboard",paid:true}).then(c=>{
+const when=(iso,tz)=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+boot({page:"dashboard",paid:true}).then(async c=>{
  if(!c)return;
  $("hi").textContent="Welcome back, "+c.name.split(" ")[0]+"! 👋";
- function tick(){const n=new Date(),t=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),19));
-  t.setUTCDate(t.getUTCDate()+((6-t.getUTCDay()+7)%7)); if(t<n)t.setUTCDate(t.getUTCDate()+7);
-  const s=Math.floor((t-n)/1000);$("cd").textContent="Starts in "+Math.floor(s/86400)+"d "+Math.floor(s%86400/3600)+"h "+Math.floor(s%3600/60)+"m";}
+ const [{data:cl},{count}]=await Promise.all([
+  sb.from("live_classes").select("*").eq("published",true).gte("starts_at",new Date().toISOString()).order("starts_at"),
+  sb.from("courses").select("id",{count:"exact",head:true}).eq("published",true)]);
+ $("nc").textContent=count||0;$("nl").textContent=(cl||[]).length;
+ const n=cl&&cl[0];
+ if(!n){$("next").innerHTML="<p>No live class scheduled yet. Check back soon.</p>";return;}
+ $("next").innerHTML=`<p><b>${esc(n.title)}</b><br>${esc(when(n.starts_at))}<br><b id="cd"></b></p>`;
+ function tick(){const s=Math.max(0,Math.floor((new Date(n.starts_at)-new Date())/1000));$("cd").textContent="Starts in "+Math.floor(s/86400)+"d "+Math.floor(s%86400/3600)+"h "+Math.floor(s%3600/60)+"m";}
  tick();setInterval(tick,30000);});
 </script></body></html>

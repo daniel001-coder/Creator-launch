@@ -5,12 +5,16 @@
 <link rel="stylesheet" href="app.css"></head>
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
-<h1>Live Classes</h1><p class="sub">Learn directly with experts.</p>
-<section class="card live"><h2>Weekly Teaching Session</h2><p>Every Saturday, 8:00 PM (WAT). Ask questions and get live training.</p><a class="btn gold" id="join" href="#">Join class →</a>
-<p class="note" style="color:#dcd0f7">Replace the # link in live.html with your Zoom / Google Meet / YouTube Live link.</p></section>
+<h1>Live Classes</h1><p class="sub">Learn directly with experts. Times are shown in your local time.</p><div id="list"><div class="card">Loading…</div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-boot({page:"live",paid:true});
+const when=(iso,tz)=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+boot({page:"live",paid:true}).then(async c=>{
+ if(!c)return;
+ const since=new Date(Date.now()-2*3600e3).toISOString();
+ const {data}=await sb.from("live_classes").select("*").eq("published",true).gte("starts_at",since).order("starts_at");
+ $("list").innerHTML=(data&&data.length)?data.map(x=>`<section class="card live"><h2>${esc(x.title)}</h2><p>${esc(x.description)}<br><b>${esc(when(x.starts_at))}</b><br><small>WAT: ${esc(new Date(x.starts_at).toLocaleString("en-GB",{timeZone:"Africa/Lagos",dateStyle:"medium",timeStyle:"short"}))}</small></p>
+  ${x.link?`<a class="btn gold" href="${esc(safeUrl(x.link))}" target="_blank" rel="noopener">Join class →</a>`:""}</section>`).join(""):'<div class="card">No live classes scheduled yet.</div>';});
 </script></body></html>

@@ -5,14 +5,14 @@
 <link rel="stylesheet" href="app.css"></head>
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
-<h1>My Courses</h1><p class="sub">Your learning library.</p>
-<section class="card"><div class="row"><span>YouTube Automation: Zero to Profit</span><small>65%</small></div><div class="track"><i style="width:65%"></i></div>
-<div class="row"><span>AI Tools &amp; Workflows</span><small>30%</small></div><div class="track"><i style="width:30%"></i></div>
-<div class="row"><span>Affiliate Marketing Basics</span><small>10%</small></div><div class="track"><i style="width:10%"></i></div>
-<p class="note">Sample courses. Protect real lesson data with the has_active_subscription() policy (see SQL file).</p></section>
+<h1>Courses</h1><p class="sub">Your learning library.</p><div id="list"><div class="card">Loading…</div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-boot({page:"courses",paid:true});
+boot({page:"courses",paid:true}).then(async c=>{
+ if(!c)return;
+ const {data}=await sb.from("courses").select("*").eq("published",true).order("sort_order");
+ $("list").innerHTML=(data&&data.length)?data.map(x=>`<section class="card"><h2>${esc(x.title)}</h2><p class="sub">${esc(x.description)}</p>
+  ${(x.lessons||[]).map((l,i)=>`<div class="item"><span>${i+1}. ${esc(l.title)}</span><a class="btn sm" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">Open</a></div>`).join("")||"<p class='note'>Lessons coming soon.</p>"}</section>`).join(""):'<div class="card">No courses yet. Check back soon.</div>';});
 </script></body></html>
