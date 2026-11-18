@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courses – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>My Courses</h1><p class="sub">Your learning library.</p>
+<section class="card"><div class="row"><span>YouTube Automation: Zero to Profit</span><small>65%</small></div><div class="track"><i style="width:65%"></i></div>
+<div class="row"><span>AI Tools &amp; Workflows</span><small>30%</small></div><div class="track"><i style="width:30%"></i></div>
+<div class="row"><span>Affiliate Marketing Basics</span><small>10%</small></div><div class="track"><i style="width:10%"></i></div>
+<p class="note">Sample courses. Protect real lesson data with the has_active_subscription() policy (see SQL file).</p></section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+boot({page:"courses",paid:true});
+</script></body></html>

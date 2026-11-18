@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>My Profile</h1><p class="sub">Your account details.</p>
+<section class="card"><dl><dt>Name</dt><dd id="pN">—</dd><dt>Email</dt><dd id="pE">—</dd><dt>Birthday</dt><dd id="pD">—</dd><dt>Joined</dt><dd id="pJ">—</dd><dt>Access until</dt><dd id="pX">—</dd></dl></section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+boot({page:"profile",paid:true}).then(async c=>{if(!c)return;const m=c.user.user_metadata||{};
+ const {data:p}=await sb.from("profiles").select("full_name,date_of_birth").eq("id",c.user.id).maybeSingle();
+ $("pN").textContent=(p&&p.full_name)||c.name;$("pE").textContent=c.user.email;
+ const d=(p&&p.date_of_birth)||m.date_of_birth;$("pD").textContent=d?fmt(d+"T00:00:00"):"—";
+ $("pJ").textContent=fmt(c.user.created_at);$("pX").textContent=fmt(c.exp);});
+</script></body></html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Affiliate – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>Affiliate Program</h1><p class="sub">Earn up to 50% commission on every referral.</p>
+<section class="card"><h2>Your referral link</h2><div class="ref"><input id="ref" readonly><button class="btn" id="cp" type="button">Copy</button></div></section>
+<div class="stats"><div class="card stat"><b>0</b><span>Referrals</span></div><div class="card stat"><b>₦0</b><span>Earnings</span></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+boot({page:"affiliate",paid:true}).then(c=>{if(!c)return;
+ $("ref").value=(location.origin.startsWith("http")?location.origin+"/":"")+"auth.html?signup&ref="+c.user.id.slice(0,8);
+ $("cp").onclick=async()=>{try{await navigator.clipboard.writeText($("ref").value)}catch(e){$("ref").select();document.execCommand("copy")}$("cp").textContent="Copied!";setTimeout(()=>$("cp").textContent="Copy",1500)};});
+</script></body></html>
