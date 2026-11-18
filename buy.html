@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buy course – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<div id="box" class="card" style="max-width:560px">Loading…</div>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+boot({page:"buy",paid:false}).then(async c=>{
+ if(!c)return;
+ const q=new URLSearchParams(location.search),cid=q.get("c"),ref=q.get("ref"),UUID=/^[0-9a-f-]{36}$/i;
+ if(!UUID.test(cid||""))return $("box").textContent="Course not found.";
+ const [{data:x},{data:own}]=await Promise.all([sb.from("courses").select("*").eq("id",cid).maybeSingle(),
+   sb.from("purchases").select("id").eq("buyer_id",c.user.id).eq("course_id",cid).limit(1)]);
+ if(!x)return $("box").textContent="Course not found or not available.";
+ let owned=(own&&own.length>0)||x.seller_id===c.user.id||c.adm;
+ function draw(msg){
+  $("box").innerHTML=`<div class="cc">${cardImg(x)}</div><h1 style="margin-top:14px">${esc(x.title)}</h1><p class="sub">${esc(x.description)}</p>
+   <div class="price">${money(x.price_kobo)}</div>${msg?`<div class="msg ok">${esc(msg)}</div>`:""}
+   ${owned?'<button class="btn big" id="dl" type="button">⬇ Download course file</button>':'<button class="btn big" id="buy" type="button">Buy now</button>'}
+   <p class="note" id="st">${owned?"You own this course. You can always download it again from My Courses.":"Secure payment by Paystack."}</p>`;
+  if($("dl"))$("dl").onclick=()=>downloadCourse(x);
+  if($("buy"))$("buy").onclick=pay;}
+ async function verify(reference){
+  $("st").textContent="Confirming payment…";
+  const {data,error}=await sb.functions.invoke("verify-purchase",{body:{reference,course_id:x.id,affiliate_id:UUID.test(ref||"")?ref:null}});
+  if(error||!data||!data.ok){$("buy").disabled=false;$("st").textContent="We could not confirm your payment yet. Keep this reference and contact support: "+reference;return;}
+  owned=true;draw("Payment confirmed! Your course is ready.");}
+ function pay(){
+  $("buy").disabled=true;
+  const reference="CP_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
+  PaystackPop.setup({key:CFG.PAYSTACK_PUBLIC_KEY,email:c.user.email,amount:x.price_kobo,currency:"NGN",ref:reference,
+   metadata:{course_id:x.id,user_id:c.user.id},callback:function(r){verify(r.reference)},onClose:function(){$("buy").disabled=false}}).openIframe();}
+ draw();});
+</script></body></html>

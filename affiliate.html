@@ -5,16 +5,22 @@
 <link rel="stylesheet" href="app.css"></head>
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
-<h1>Affiliate Program</h1><p class="sub" id="at">Earn commission on every referral.</p>
-<section class="card"><h2>Your referral link</h2><div class="ref"><input id="ref" readonly><button class="btn" id="cp" type="button">Copy</button></div></section>
-<div class="stats"><div class="card stat"><b id="cm">–</b><span>Commission</span></div><div class="card stat"><b>0</b><span>Referrals</span></div></div>
+<h1>Affiliate &amp; Courses</h1><p class="sub">Buy a course, or copy your personal link and earn a commission every time someone buys through it.</p>
+<div id="grid" class="grid"><div class="card">Loading…</div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-boot({page:"affiliate",paid:true}).then(c=>{if(!c)return;
- const A=c.settings.affiliate||{commission:50,text:""};
- $("at").textContent=A.text||"Earn commission on every referral.";$("cm").textContent=A.commission+"%";
- $("ref").value=(location.origin.startsWith("http")?location.origin+"/":"")+"auth.html?signup&ref="+c.user.id.slice(0,8);
- $("cp").onclick=async()=>{try{await navigator.clipboard.writeText($("ref").value)}catch(e){$("ref").select();document.execCommand("copy")}$("cp").textContent="Copied!";setTimeout(()=>$("cp").textContent="Copy",1500)};});
+boot({page:"affiliate",paid:true}).then(async c=>{
+ if(!c)return;
+ const {data}=await sb.from("courses").select("*").eq("published",true).eq("status","approved").order("created_at",{ascending:false});
+ const base=new URL("buy.html",location.href).href;
+ $("grid").innerHTML=(data&&data.length)?data.map(x=>{
+  const earn=Math.floor(x.price_kobo*x.affiliate_percent/100);
+  return `<div class="card cc">${cardImg(x)}<div class="b"><b>${esc(x.title)}</b><div class="clamp">${esc(x.description)}</div>
+   <div><b style="color:var(--p);font-size:18px">${money(x.price_kobo)}</b> <span class="tag green">You earn ${money(earn)} (${x.affiliate_percent}%)</span></div>
+   <div class="acts" style="margin-top:auto"><a class="btn sm" href="buy.html?c=${x.id}">Buy</a><button class="btn sm" type="button" data-copy="${base}?c=${x.id}&amp;ref=${c.user.id}">Copy link</button></div></div></div>`}).join(""):'<div class="card">No courses available yet.</div>';
+ $("grid").onclick=async e=>{const u=e.target.dataset.copy;if(!u)return;
+  try{await navigator.clipboard.writeText(u)}catch(_){const t=document.createElement("input");t.value=u;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();}
+  e.target.textContent="Copied!";setTimeout(()=>e.target.textContent="Copy link",1500);};});
 </script></body></html>

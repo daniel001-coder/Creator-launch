@@ -9,7 +9,31 @@ const sb=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=d=>d?new Date(d).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}):"—";
-const NAV=[["dashboard","Dashboard","🏠"],["courses","Courses","🎓"],["live","Live Classes","📡"],["affiliate","Affiliate","🤝"],["profile","Profile","👤"],["pay","Subscription","💳"]];
+const NAV=[["dashboard","Dashboard","🏠"],["affiliate","Affiliate","🤝"],["courses","My Courses","🎓"],["sell","Sell a Course","📤"],["earnings","Earnings","💰"],["live","Live Classes","📡"],["profile","Profile","👤"],["pay","Subscription","💳"]];
+const money=k=>"₦"+(Number(k||0)/100).toLocaleString();
+const fmtDT=d=>d?new Date(d).toLocaleString():"—";
+const coverUrl=p=>p?sb.storage.from("course-covers").getPublicUrl(p).data.publicUrl:"";
+const cardImg=x=>x.cover_path?`<img src="${esc(coverUrl(x.cover_path))}" alt="" loading="lazy">`:'<div class="ph">🎓</div>';
+const safeName=n=>String(n).replace(/[^\w.\-]+/g,"_").slice(-80);
+async function uploadTo(bucket,uid,file){
+  const path=uid+"/"+Date.now()+"_"+safeName(file.name);
+  const {error}=await sb.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type||undefined});
+  if(error)throw error;return path;}
+// Shared by admin.html and sell.html: uploads the cover + file, then saves the course. Returns an error or null.
+async function saveCourse({id,row,cover,file,uid}){
+  try{
+    if(cover&&(!cover.type.startsWith("image/")||cover.size>5*1048576))return {message:"The picture must be an image under 5 MB."};
+    if(file&&file.size>50*1048576)return {message:"The course file must be under 50 MB."};
+    if(!id&&!file)return {message:"Please choose the course file to upload."};
+    if(!id&&!cover)return {message:"Please choose a cover picture."};
+    if(cover)row.cover_path=await uploadTo("course-covers",uid,cover);
+    if(file){row.file_path=await uploadTo("course-files",uid,file);row.file_name=file.name;}
+    const {error}=id?await sb.from("courses").update(row).eq("id",id):await sb.from("courses").insert(row);
+    return error||null;
+  }catch(e){return e;}}
+async function downloadCourse(x){
+  const {data,error}=await sb.storage.from("course-files").createSignedUrl(x.file_path,120,{download:x.file_name||true});
+  if(error)return alert(error.message);location.href=data.signedUrl;}
 const safeUrl=u=>/^https?:\/\//i.test(u||"")?u:"#";
 async function getSettings(){const {data}=await sb.from("site_settings").select("key,value");const o={};(data||[]).forEach(r=>o[r.key]=r.value);return o;};
 
@@ -21,10 +45,12 @@ async function checkPaid(user){
 }
 async function boot(opt){
   const {data:{session}}=await sb.auth.getSession();
-  if(!session){location.replace("auth.html");return;}
+  if(!session){location.replace("auth.html?next="+encodeURIComponent(location.pathname.split("/").pop()+location.search));return;}
   const user=session.user, meta=user.user_metadata||{};
   const {exp,active:paid}=await checkPaid(user);
   const adm=(await sb.rpc("is_admin")).data===true, active=paid||adm;
+  if(!adm){const {data:sp}=await sb.from("suspended_users").select("user_id").eq("user_id",user.id).maybeSingle();
+    if(sp){await sb.auth.signOut();location.replace("auth.html?suspended");return;}}
   if(opt.admin&&!adm){location.replace("dashboard.html");return;}
   const settings=await getSettings();
   if(opt.paid&&!active){location.replace("pay.html"+(exp?"?expired":"?new"));return;}

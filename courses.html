@@ -1,18 +1,24 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Courses – CreatorLaunch</title>
+<title>My Courses – CreatorLaunch</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="app.css"></head>
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
-<h1>Courses</h1><p class="sub">Your learning library.</p><div id="list"><div class="card">Loading…</div></div>
+<h1>My Courses</h1><p class="sub">Courses you bought. Download them any time.</p>
+<div id="grid" class="grid"><div class="card">Loading…</div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-boot({page:"courses",paid:true}).then(async c=>{
+boot({page:"courses",paid:false}).then(async c=>{
  if(!c)return;
- const {data}=await sb.from("courses").select("*").eq("published",true).order("sort_order");
- $("list").innerHTML=(data&&data.length)?data.map(x=>`<section class="card"><h2>${esc(x.title)}</h2><p class="sub">${esc(x.description)}</p>
-  ${(x.lessons||[]).map((l,i)=>`<div class="item"><span>${i+1}. ${esc(l.title)}</span><a class="btn sm" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">Open</a></div>`).join("")||"<p class='note'>Lessons coming soon.</p>"}</section>`).join(""):'<div class="card">No courses yet. Check back soon.</div>';});
+ const {data:p}=await sb.from("purchases").select("course_id,created_at").eq("buyer_id",c.user.id).order("created_at",{ascending:false});
+ const ids=(p||[]).map(r=>r.course_id);
+ const {data}=ids.length?await sb.from("courses").select("*").in("id",ids):{data:[]};
+ const by={};(data||[]).forEach(x=>by[x.id]=x);
+ $("grid").innerHTML=ids.length?(p||[]).filter(r=>by[r.course_id]).map(r=>{const x=by[r.course_id];
+  return `<div class="card cc">${cardImg(x)}<div class="b"><b>${esc(x.title)}</b><div class="clamp">${esc(x.description)}</div><small class="note">Bought ${esc(fmtDT(r.created_at))}</small>
+  <button class="btn sm" data-d="${x.id}" type="button" style="margin-top:auto">⬇ Download</button></div></div>`}).join(""):'<div class="card">You have not bought any course yet. <a href="affiliate.html" style="text-decoration:underline">Browse courses</a></div>';
+ $("grid").onclick=e=>{const id=e.target.dataset.d;if(id)downloadCourse(by[id]);};});
 </script></body></html>

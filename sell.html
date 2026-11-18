@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sell a Course – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>Sell a Course</h1><p class="sub">Upload your course. After the admin approves it, it appears in the Affiliate page and you earn from every sale.</p>
+<div id="toast" class="msg ok" hidden></div>
+<section class="card f"><h2 id="h">Upload a course</h2>
+<label>Title</label><input id="title" maxlength="100"><label>Description</label><textarea id="desc" rows="3" maxlength="600"></textarea>
+<label>Price (₦, minimum 100)</label><input id="price" type="number" min="100">
+<label>Commission for the person who shares your link (0 to 90 %)</label><input id="aff" type="number" min="0" max="90" value="20">
+<p class="note" id="calc"></p>
+<label>Cover picture (shown to buyers)</label><input id="cover" type="file" accept="image/*">
+<label>Course file (zip, pdf, video… max 50 MB)</label><input id="file" type="file">
+<button class="btn" id="save" type="button" style="margin-top:16px">Submit course</button> <button class="btn sm red" id="cancel" type="button" hidden>Cancel edit</button>
+<p class="note">When you edit a course it goes back to “pending” until the admin approves it again.</p></section>
+<section class="card"><h2>My uploads</h2><div id="list"></div></section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+let editId=null,MINE=[],SALES={},U;
+const toast=(m,ok=true)=>{const e=$("toast");e.className="msg "+(ok?"ok":"err");e.textContent=m;e.hidden=false;scrollTo(0,0);setTimeout(()=>e.hidden=true,4500);};
+function calc(){const p=+$("price").value||0,a=Math.min(90,Math.max(0,+$("aff").value||0)),f=(window.FEE||0);
+ $("calc").textContent=p>=100?`Per sale: you earn about ₦${Math.floor(p*(100-a-f)/100).toLocaleString()} if sold through a link, or ₦${Math.floor(p*(100-f)/100).toLocaleString()} if bought directly. The sharer earns ₦${Math.floor(p*a/100).toLocaleString()}.`:"";}
+["price","aff"].forEach(i=>$(i).oninput=calc);
+function reset(){editId=null;["title","desc","price","cover","file"].forEach(i=>$(i).value="");$("aff").value=20;$("h").textContent="Upload a course";$("cancel").hidden=true;$("save").textContent="Submit course";calc();}
+$("cancel").onclick=reset;
+async function load(){
+ const [{data},{data:e}]=await Promise.all([sb.from("courses").select("*").eq("seller_id",U.id).order("created_at",{ascending:false}),
+  sb.from("earnings").select("course_id,amount_kobo").eq("user_id",U.id).eq("kind","sale")]);
+ MINE=data||[];SALES={};(e||[]).forEach(r=>{const s=SALES[r.course_id]||(SALES[r.course_id]={n:0,t:0});s.n++;s.t+=r.amount_kobo;});
+ $("list").innerHTML=MINE.map(x=>{const s=SALES[x.id]||{n:0,t:0};
+  return `<div class="item"><span class="l"><img class="thumb" src="${esc(coverUrl(x.cover_path))}" alt=""><span><b>${esc(x.title)}</b> <span class="tag ${x.status==="approved"?"green":x.status==="rejected"?"red":"gold"}">${esc(x.status)}</span>
+  <small>${money(x.price_kobo)} · sharer gets ${x.affiliate_percent}% · ${s.n} sale${s.n===1?"":"s"} · earned ${money(s.t)}</small></span></span>
+  <span class="acts"><button class="btn sm" data-e="${x.id}" type="button">Edit</button></span></div>`}).join("")||"<p class='note'>You have not uploaded a course yet.</p>";}
+$("list").onclick=e=>{const id=e.target.dataset.e;if(!id)return;const x=MINE.find(y=>y.id===id);editId=id;
+ $("title").value=x.title;$("desc").value=x.description||"";$("price").value=x.price_kobo/100;$("aff").value=x.affiliate_percent;
+ $("h").textContent="Edit course (leave pictures/files empty to keep the old ones)";$("cancel").hidden=false;$("save").textContent="Save changes";calc();scrollTo(0,0);};
+$("save").onclick=async()=>{
+ const title=$("title").value.trim(),price=+$("price").value,aff=Math.round(+$("aff").value);
+ if(!title)return toast("Enter a title.",false);
+ if(!(price>=100))return toast("Minimum price is ₦100.",false);
+ if(!(aff>=0&&aff<=90))return toast("Commission must be between 0 and 90.",false);
+ $("save").disabled=true;$("save").textContent="Uploading…";
+ const err=await saveCourse({id:editId,uid:U.id,cover:$("cover").files[0],file:$("file").files[0],
+  row:{title,description:$("desc").value.trim(),price_kobo:Math.round(price*100),affiliate_percent:aff,published:true,status:"pending",seller_id:U.id}});
+ $("save").disabled=false;$("save").textContent=editId?"Save changes":"Submit course";
+ if(err)return toast(err.message||String(err),false);
+ toast("Saved! Your course is waiting for admin approval.");reset();load();};
+boot({page:"sell",paid:true}).then(c=>{if(!c)return;U=c.user;window.FEE=+((c.settings.marketplace||{}).platform_fee_percent)||0;load();});
+</script></body></html>

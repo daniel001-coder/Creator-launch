@@ -6,7 +6,7 @@
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
 <section class="card hello"><h1 id="hi">Welcome back!</h1><p class="sub">Keep building your channel today.</p></section>
-<div class="stats"><div class="card stat"><b>Active</b><span>Account status</span></div><div class="card stat"><b id="nc">–</b><span>Courses available</span></div><div class="card stat"><b id="nl">–</b><span>Upcoming live classes</span></div></div>
+<div class="stats"><div class="card stat"><b>Active</b><span>Account status</span></div><a class="card stat" href="earnings.html"><b id="bal">–</b><span>Available earnings</span></a><div class="card stat"><b id="nc">–</b><span>Courses available</span></div><div class="card stat"><b id="nl">–</b><span>Upcoming live classes</span></div></div>
 <section class="card live"><h2>Next Live Class</h2><div id="next"><p>Loading…</p></div><a class="btn gold" href="live.html">All classes →</a></section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -15,6 +15,7 @@
 const when=(iso,tz)=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
 boot({page:"dashboard",paid:true}).then(async c=>{
  if(!c)return;
+ sb.rpc("my_balance").then(r=>{const x=r.data&&r.data[0];$("bal").textContent=money(x?x.available:0);});
  $("hi").textContent="Welcome back, "+c.name.split(" ")[0]+"! 👋";
  const [{data:cl},{count}]=await Promise.all([
   sb.from("live_classes").select("*").eq("published",true).gte("starts_at",new Date().toISOString()).order("starts_at"),

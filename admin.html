@@ -7,63 +7,72 @@
 <div id="view" hidden>
 <h1>Admin Panel</h1><p class="sub">Everything users see on the site is controlled from here.</p>
 <div id="toast" class="msg ok" hidden></div>
-<div class="tabs"><button data-tab="settings" class="on">Settings</button><button data-tab="live">Live classes</button><button data-tab="courses">Courses</button><button data-tab="users">Users</button></div>
+<div class="tabs"><button data-tab="settings" class="on">Settings</button><button data-tab="live">Live classes</button><button data-tab="courses">Courses</button><button data-tab="users">Users</button><button data-tab="pay">Withdrawals</button></div>
 
-<div id="t_settings"><section class="card f"><h2>Payment</h2>
+<div id="t_settings"><section class="card f"><h2>Activation payment</h2>
 <label>Fee (₦)</label><input id="s_amt" type="number" min="100"><label>Access length (days)</label><input id="s_days" type="number" min="1">
+<h2 style="margin-top:22px">Marketplace</h2>
+<label>Platform fee taken from each course sale (0 to 10 %)</label><input id="s_fee" type="number" min="0" max="10" step="0.5">
+<label>Minimum withdrawal (₦)</label><input id="s_min" type="number" min="100">
 <h2 style="margin-top:22px">Announcement banner</h2>
 <label><input id="s_show" type="checkbox">Show to all users</label><label>Message</label><input id="s_ann" maxlength="200">
-<h2 style="margin-top:22px">Affiliate</h2>
-<label>Commission (%)</label><input id="s_com" type="number" min="0" max="100"><label>Description</label><input id="s_atx" maxlength="200">
 <button class="btn" id="s_save" type="button" style="margin-top:20px">Save settings</button></section></div>
 
 <div id="t_live" hidden><section class="card f"><h2 id="l_h">Add live class</h2>
+<p class="note">You can add as many classes as you want. Each one shows to paid users in their own time zone.</p>
 <label>Title</label><input id="l_title"><label>Description</label><input id="l_desc"><label>Date &amp; time (your local time)</label><input id="l_when" type="datetime-local"><label>Join link (Zoom / Meet / YouTube)</label><input id="l_link" placeholder="https://">
 <label><input id="l_pub" type="checkbox" checked>Published</label>
 <button class="btn" id="l_save" type="button" style="margin-top:14px">Save class</button> <button class="btn sm red" id="l_cancel" type="button" hidden>Cancel edit</button></section>
 <section class="card"><h2>Scheduled classes</h2><div id="l_list"></div></section></div>
 
 <div id="t_courses" hidden><section class="card f"><h2 id="c_h">Add course</h2>
-<label>Title</label><input id="c_title"><label>Description</label><input id="c_desc"><label>Order (small number shows first)</label><input id="c_ord" type="number" value="0">
-<label>Lessons, one per line: Title | https://link</label><textarea id="c_les" rows="6" placeholder="Intro | https://youtube.com/..."></textarea>
+<label>Title</label><input id="c_title"><label>Description</label><textarea id="c_desc" rows="3"></textarea>
+<label>Price (₦, minimum 100)</label><input id="c_price" type="number" min="100">
+<label>Commission for affiliates who share the link (0 to 90 %)</label><input id="c_aff" type="number" min="0" max="90" value="20">
+<label>Cover picture (shown to users)</label><input id="c_cover" type="file" accept="image/*">
+<label>Course file (max 50 MB)</label><input id="c_file" type="file">
 <label><input id="c_pub" type="checkbox" checked>Published</label>
 <button class="btn" id="c_save" type="button" style="margin-top:14px">Save course</button> <button class="btn sm red" id="c_cancel" type="button" hidden>Cancel edit</button></section>
-<section class="card"><h2>Courses</h2><div id="c_list"></div></section></div>
+<section class="card"><h2>All courses</h2><div id="c_list"></div></section></div>
 
-<div id="t_users" hidden><section class="card f"><h2>Users</h2><input id="u_q" placeholder="Search name or email…"><div id="u_list" style="margin-top:10px"></div></section></div>
+<div id="t_users" hidden><section class="card f"><input id="u_q" placeholder="Search name or email…"></section><div id="u_list"></div></div>
+
+<div id="t_pay" hidden><section class="card"><h2>Withdrawal requests</h2><p class="note">Pay the user from your bank or Paystack dashboard first, then tap “Mark paid”.</p><div id="w_list"></div></section></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-const $$=s=>document.querySelectorAll(s),tabs=["settings","live","courses","users"];
-const toast=(m,ok=true)=>{const e=$("toast");e.className="msg "+(ok?"ok":"err");e.textContent=m;e.hidden=false;scrollTo(0,0);setTimeout(()=>e.hidden=true,3500);};
+const $$=s=>document.querySelectorAll(s),tabs=["settings","live","courses","users","pay"];
+const toast=(m,ok=true)=>{const e=$("toast");e.className="msg "+(ok?"ok":"err");e.textContent=m;e.hidden=false;scrollTo(0,0);setTimeout(()=>e.hidden=true,4000);};
 const loc=iso=>{const d=new Date(iso);return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
 const show=t=>{tabs.forEach(x=>$("t_"+x).hidden=x!==t);$$("[data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));};
 $$("[data-tab]").forEach(b=>b.onclick=()=>show(b.dataset.tab));
-let LIVE=[],COURSES=[],USERS=[],editL=null,editC=null;
+let LIVE=[],COURSES=[],USERS=[],WD=[],SELLERS={},editL=null,editC=null,ME;
 
 boot({page:"admin",paid:false,admin:true}).then(c=>{
- if(!c)return;
- const S=c.settings,P=S.pricing||{},N=S.announcement||{},A=S.affiliate||{};
- $("s_amt").value=P.amount_naira??2000;$("s_days").value=P.days??30;$("s_show").checked=!!N.show;$("s_ann").value=N.text||"";$("s_com").value=A.commission??50;$("s_atx").value=A.text||"";
+ if(!c)return;ME=c.user;
+ const S=c.settings,P=S.pricing||{},N=S.announcement||{},M=S.marketplace||{};
+ $("s_amt").value=P.amount_naira??2000;$("s_days").value=P.days??30;$("s_show").checked=!!N.show;$("s_ann").value=N.text||"";
+ $("s_fee").value=M.platform_fee_percent??0;$("s_min").value=M.min_withdrawal_naira??1000;
  $("s_save").onclick=async()=>{
-  const amt=+$("s_amt").value,days=+$("s_days").value;
+  const amt=+$("s_amt").value,days=+$("s_days").value,fee=+$("s_fee").value,min=+$("s_min").value;
   if(!(amt>=100)||!(days>=1))return toast("Enter a valid fee and number of days.",false);
+  if(!(fee>=0&&fee<=10)||!(min>=100))return toast("Platform fee must be 0 to 10, minimum withdrawal at least ₦100.",false);
   const {error}=await sb.from("site_settings").upsert([
    {key:"pricing",value:{amount_naira:amt,days}},
    {key:"announcement",value:{show:$("s_show").checked,text:$("s_ann").value.trim()}},
-   {key:"affiliate",value:{commission:+$("s_com").value||0,text:$("s_atx").value.trim()}}]);
+   {key:"marketplace",value:{platform_fee_percent:fee,min_withdrawal_naira:min}}]);
   toast(error?error.message:"Settings saved.",!error);};
- loadLive();loadCourses();loadUsers();});
+ loadLive();loadCourses();loadUsers();loadW();});
 
-/* ---- live classes ---- */
+/* ---- live classes (add as many as you like) ---- */
 async function loadLive(){const {data}=await sb.from("live_classes").select("*").order("starts_at");LIVE=data||[];
- $("l_list").innerHTML=LIVE.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${esc(new Date(x.starts_at).toLocaleString())}</small></span><span class="acts"><button class="btn sm" data-le="${x.id}">Edit</button><button class="btn sm red" data-ld="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No classes yet.</p>";}
+ $("l_list").innerHTML=LIVE.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${esc(fmtDT(x.starts_at))}</small></span><span class="acts"><button class="btn sm" data-le="${x.id}">Edit</button><button class="btn sm red" data-ld="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No classes yet.</p>";}
 $("l_save").onclick=async()=>{
  if(!$("l_title").value.trim()||!$("l_when").value)return toast("Title and date/time are required.",false);
  const row={title:$("l_title").value.trim(),description:$("l_desc").value.trim(),starts_at:new Date($("l_when").value).toISOString(),link:$("l_link").value.trim(),published:$("l_pub").checked};
  const {error}=editL?await sb.from("live_classes").update(row).eq("id",editL):await sb.from("live_classes").insert(row);
- if(error)return toast(error.message,false);toast("Class saved.");resetL();loadLive();};
+ if(error)return toast(error.message,false);toast("Class saved. Add another if you like.");resetL();loadLive();};
 function resetL(){editL=null;["l_title","l_desc","l_when","l_link"].forEach(i=>$(i).value="");$("l_pub").checked=true;$("l_h").textContent="Add live class";$("l_cancel").hidden=true;}
 $("l_cancel").onclick=resetL;
 $("l_list").onclick=async e=>{const b=e.target;
@@ -71,31 +80,63 @@ $("l_list").onclick=async e=>{const b=e.target;
  if(b.dataset.ld&&confirm("Delete this class?")){const {error}=await sb.from("live_classes").delete().eq("id",b.dataset.ld);if(error)toast(error.message,false);loadLive();}};
 
 /* ---- courses ---- */
-async function loadCourses(){const {data}=await sb.from("courses").select("*").order("sort_order");COURSES=data||[];
- $("c_list").innerHTML=COURSES.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${(x.lessons||[]).length} lessons</small></span><span class="acts"><button class="btn sm" data-ce="${x.id}">Edit</button><button class="btn sm red" data-cd="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No courses yet.</p>";}
+async function loadCourses(){
+ const {data}=await sb.from("courses").select("*").order("created_at",{ascending:false});COURSES=data||[];
+ const ids=[...new Set(COURSES.map(x=>x.seller_id).filter(Boolean))];SELLERS={};
+ if(ids.length){const {data:p}=await sb.from("profiles").select("id,full_name,email").in("id",ids);(p||[]).forEach(r=>SELLERS[r.id]=r.full_name||r.email);}
+ const tag=s=>`<span class="tag ${s==="approved"?"green":s==="rejected"?"red":"gold"}">${esc(s)}</span>`;
+ $("c_list").innerHTML=COURSES.map(x=>`<div class="item"><span class="l"><img class="thumb" src="${esc(coverUrl(x.cover_path))}" alt=""><span><b>${esc(x.title)}</b> ${tag(x.status)}${x.published?"":" (hidden)"}
+  <small>${money(x.price_kobo)} · affiliate ${x.affiliate_percent}% · by ${x.seller_id?esc(SELLERS[x.seller_id]||"user"):"Admin"}</small></span></span>
+  <span class="acts">${x.status!=="approved"?`<button class="btn sm" data-ca="${x.id}">Approve</button>`:""}${x.status==="pending"?`<button class="btn sm red" data-cr="${x.id}">Reject</button>`:""}<button class="btn sm" data-ce="${x.id}">Edit</button><button class="btn sm red" data-cd="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No courses yet.</p>";}
 $("c_save").onclick=async()=>{
- if(!$("c_title").value.trim())return toast("Course title is required.",false);
- const lessons=$("c_les").value.split("\n").map(l=>l.split("|")).filter(p=>p[0].trim()).map(p=>({title:p[0].trim(),url:(p[1]||"").trim()}));
- const row={title:$("c_title").value.trim(),description:$("c_desc").value.trim(),sort_order:+$("c_ord").value||0,lessons,published:$("c_pub").checked};
- const {error}=editC?await sb.from("courses").update(row).eq("id",editC):await sb.from("courses").insert(row);
- if(error)return toast(error.message,false);toast("Course saved.");resetC();loadCourses();};
-function resetC(){editC=null;["c_title","c_desc","c_les"].forEach(i=>$(i).value="");$("c_ord").value=0;$("c_pub").checked=true;$("c_h").textContent="Add course";$("c_cancel").hidden=true;}
+ const title=$("c_title").value.trim(),price=+$("c_price").value,aff=Math.round(+$("c_aff").value);
+ if(!title)return toast("Course title is required.",false);
+ if(!(price>=100))return toast("Minimum price is ₦100.",false);
+ if(!(aff>=0&&aff<=90))return toast("Commission must be 0 to 90.",false);
+ $("c_save").disabled=true;$("c_save").textContent="Uploading…";
+ const row={title,description:$("c_desc").value.trim(),price_kobo:Math.round(price*100),affiliate_percent:aff,published:$("c_pub").checked};
+ if(!editC){row.seller_id=null;row.status="approved";}
+ const err=await saveCourse({id:editC,uid:ME.id,row,cover:$("c_cover").files[0],file:$("c_file").files[0]});
+ $("c_save").disabled=false;$("c_save").textContent="Save course";
+ if(err)return toast(err.message||String(err),false);toast("Course saved.");resetC();loadCourses();};
+function resetC(){editC=null;["c_title","c_desc","c_price","c_cover","c_file"].forEach(i=>$(i).value="");$("c_aff").value=20;$("c_pub").checked=true;$("c_h").textContent="Add course";$("c_cancel").hidden=true;}
 $("c_cancel").onclick=resetC;
-$("c_list").onclick=async e=>{const b=e.target;
- if(b.dataset.ce){const x=COURSES.find(y=>y.id===b.dataset.ce);editC=x.id;$("c_title").value=x.title;$("c_desc").value=x.description||"";$("c_ord").value=x.sort_order;$("c_les").value=(x.lessons||[]).map(l=>l.title+" | "+l.url).join("\n");$("c_pub").checked=x.published;$("c_h").textContent="Edit course";$("c_cancel").hidden=false;scrollTo(0,0);}
- if(b.dataset.cd&&confirm("Delete this course?")){const {error}=await sb.from("courses").delete().eq("id",b.dataset.cd);if(error)toast(error.message,false);loadCourses();}};
+$("c_list").onclick=async e=>{const b=e.target,d=b.dataset;
+ if(d.ce){const x=COURSES.find(y=>y.id===d.ce);editC=x.id;$("c_title").value=x.title;$("c_desc").value=x.description||"";$("c_price").value=x.price_kobo/100;$("c_aff").value=x.affiliate_percent;$("c_pub").checked=x.published;$("c_h").textContent="Edit course (leave picture/file empty to keep the old ones)";$("c_cancel").hidden=false;scrollTo(0,0);}
+ if(d.ca||d.cr){const {error}=await sb.from("courses").update({status:d.ca?"approved":"rejected"}).eq("id",d.ca||d.cr);toast(error?error.message:d.ca?"Course approved.":"Course rejected.",!error);loadCourses();}
+ if(d.cd&&confirm("Delete this course? (Not possible if it already has sales. Hide it instead.)")){const {error}=await sb.from("courses").delete().eq("id",d.cd);if(error)toast(error.message.includes("purchases")?"This course has sales, so hide it instead of deleting.":error.message,false);loadCourses();}};
 
-/* ---- users ---- */
+/* ---- users: paid vs not paid ---- */
 async function loadUsers(){const {data,error}=await sb.rpc("admin_list_users");if(error)return toast(error.message,false);USERS=data||[];drawUsers();}
-function drawUsers(){const q=$("u_q").value.toLowerCase(),now=new Date();
- $("u_list").innerHTML=USERS.filter(u=>(u.email+" "+(u.full_name||"")).toLowerCase().includes(q)).map(u=>{
-  const on=u.expires_at&&new Date(u.expires_at)>now;
-  return `<div class="item"><span><b>${esc(u.full_name||"(no name)")}</b> ${on?"✅":"⛔"}<small>${esc(u.email)} · ${on?"active until "+fmt(u.expires_at):u.expires_at?"expired "+fmt(u.expires_at):"never paid"}</small></span>
-  <span class="acts"><button class="btn sm" data-ug="${u.user_id}">Grant days</button><button class="btn sm red" data-ur="${u.user_id}">Remove</button></span></div>`;}).join("")||"<p class='note'>No users found.</p>";}
+function drawUsers(){
+ const q=$("u_q").value.toLowerCase(),now=new Date();
+ const list=USERS.filter(u=>(u.email+" "+(u.full_name||"")).toLowerCase().includes(q));
+ const isPaid=u=>u.expires_at&&new Date(u.expires_at)>now,paid=list.filter(isPaid),unpaid=list.filter(u=>!isPaid(u));
+ const row=u=>{const on=isPaid(u);
+  const info=on?`Paid: ${u.last_paid_at?esc(fmtDT(u.last_paid_at)):"granted by admin"} · active until ${esc(fmt(u.expires_at))}`
+    :u.expires_at?`Expired ${esc(fmt(u.expires_at))}${u.last_paid_at?" · last paid "+esc(fmtDT(u.last_paid_at)):""}`:"Never paid";
+  return `<div class="item"><span><b>${esc(u.full_name||"(no name)")}</b> ${u.suspended?'<span class="tag red">SUSPENDED</span>':""}<small>${esc(u.email)}</small><small>${info}</small></span>
+  <span class="acts"><button class="btn sm" data-ug="${u.user_id}">Grant days</button>${on?`<button class="btn sm red" data-ur="${u.user_id}">Remove</button>`:""}
+  ${u.suspended?`<button class="btn sm" data-uu="${u.user_id}">Unsuspend</button>`:`<button class="btn sm red" data-us="${u.user_id}">Suspend</button>`}</span></div>`;};
+ $("u_list").innerHTML=`<section class="card"><h2>✅ Paid users (${paid.length})</h2>${paid.map(row).join("")||"<p class='note'>None.</p>"}</section>
+  <section class="card"><h2>⛔ Not paid (${unpaid.length})</h2>${unpaid.map(row).join("")||"<p class='note'>None.</p>"}</section>`;}
 $("u_q").oninput=drawUsers;
-$("u_list").onclick=async e=>{const b=e.target;let id=b.dataset.ug||b.dataset.ur,days;if(!id)return;
- if(b.dataset.ug){days=parseInt(prompt("Give how many days of access (from today)?","30"),10);if(!(days>0))return;}
- else{if(!confirm("Remove this user's access now?"))return;days=0;}
- const {error}=await sb.rpc("admin_set_access",{p_user:id,p_days:days});
- toast(error?error.message:"Access updated.",!error);loadUsers();};
+$("u_list").onclick=async e=>{const d=e.target.dataset;let r;
+ if(d.ug){const days=parseInt(prompt("Give how many days of access (from today)?","30"),10);if(!(days>0))return;r=await sb.rpc("admin_set_access",{p_user:d.ug,p_days:days});}
+ else if(d.ur){if(!confirm("Remove this user's access now?"))return;r=await sb.rpc("admin_set_access",{p_user:d.ur,p_days:0});}
+ else if(d.us){const why=prompt("Reason for suspending (e.g. broke live class rules):","Broke the rules in a live class");if(why===null)return;r=await sb.rpc("admin_suspend",{p_user:d.us,p_suspend:true,p_reason:why});}
+ else if(d.uu){r=await sb.rpc("admin_suspend",{p_user:d.uu,p_suspend:false});}
+ else return;
+ toast(r.error?r.error.message:"Done.",!r.error);loadUsers();};
+
+/* ---- withdrawals ---- */
+async function loadW(){const {data,error}=await sb.rpc("admin_list_withdrawals");if(error)return toast(error.message,false);WD=data||[];
+ $("w_list").innerHTML=WD.map(w=>`<div class="item"><span><b>${money(w.amount_kobo)}</b> <span class="tag ${w.status==="paid"?"green":w.status==="rejected"?"red":"gold"}">${esc(w.status)}</span>
+  <small>${esc(w.full_name||"")} · ${esc(w.email||"")}</small><small>${esc(w.bank_name)} · ${esc(w.account_number)} · ${esc(w.account_name)}</small><small>${esc(fmtDT(w.created_at))}${w.note?" · "+esc(w.note):""}</small></span>
+  ${w.status==="pending"?`<span class="acts"><button class="btn sm" data-wp="${w.id}">Mark paid</button><button class="btn sm red" data-wr="${w.id}">Reject</button></span>`:""}</div>`).join("")||"<p class='note'>No withdrawal requests.</p>";}
+$("w_list").onclick=async e=>{const d=e.target.dataset;if(!d.wp&&!d.wr)return;
+ const note=d.wr?prompt("Reason for rejecting (optional):",""):null;if(d.wr&&note===null)return;
+ if(d.wp&&!confirm("Confirm you have already sent this money?"))return;
+ const {error}=await sb.rpc("admin_process_withdrawal",{p_id:d.wp||d.wr,p_status:d.wp?"paid":"rejected",p_note:note});
+ toast(error?error.message:"Updated.",!error);loadW();};
 </script></body></html>

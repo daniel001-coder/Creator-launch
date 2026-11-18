@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earnings – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>Earnings</h1><p class="sub">Money from your course sales and affiliate commissions.</p>
+<div id="toast" class="msg ok" hidden></div>
+<div class="stats"><div class="card stat"><b id="av">–</b><span>Available to withdraw</span></div><div class="card stat"><b id="te">–</b><span>Total earned</span></div><div class="card stat"><b id="wd">–</b><span>Withdrawn / pending</span></div></div>
+<section class="card f"><h2>Request withdrawal</h2>
+<label>Amount (₦)</label><input id="amt" type="number" min="1"><label>Bank name</label><input id="bank" placeholder="e.g. GTBank"><label>Account number (10 digits)</label><input id="acct" inputmode="numeric" maxlength="10"><label>Account name</label><input id="aname">
+<button class="btn" id="req" type="button" style="margin-top:16px">Request withdrawal</button><p class="note" id="minn"></p></section>
+<section class="card"><h2>Withdrawals</h2><div id="wl"></div></section>
+<section class="card"><h2>History</h2><div id="el"></div></section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+const toast=(m,ok=true)=>{const e=$("toast");e.className="msg "+(ok?"ok":"err");e.textContent=m;e.hidden=false;scrollTo(0,0);setTimeout(()=>e.hidden=true,4500);};
+let U;
+async function load(){
+ const [b,{data:w},{data:e}]=await Promise.all([sb.rpc("my_balance"),
+  sb.from("withdrawals").select("*").eq("user_id",U.id).order("created_at",{ascending:false}),
+  sb.from("earnings").select("*").eq("user_id",U.id).order("created_at",{ascending:false}).limit(100)]);
+ const d=(b.data&&b.data[0])||{total_earned:0,withdrawn:0,available:0};
+ $("av").textContent=money(d.available);$("te").textContent=money(d.total_earned);$("wd").textContent=money(d.withdrawn);
+ $("wl").innerHTML=(w||[]).map(r=>`<div class="item"><span><b>${money(r.amount_kobo)}</b> <span class="tag ${r.status==="paid"?"green":r.status==="rejected"?"red":"gold"}">${esc(r.status)}</span><small>${esc(r.bank_name)} · ${esc(r.account_number)} · ${esc(fmtDT(r.created_at))}${r.note?" · "+esc(r.note):""}</small></span></div>`).join("")||"<p class='note'>No withdrawals yet.</p>";
+ const ids=[...new Set((e||[]).map(r=>r.course_id).filter(Boolean))],t={};
+ if(ids.length){const {data:cs}=await sb.from("courses").select("id,title").in("id",ids);(cs||[]).forEach(x=>t[x.id]=x.title);}
+ $("el").innerHTML=(e||[]).map(r=>`<div class="item"><span><b>${r.kind==="sale"?"Course sale":"Affiliate commission"}</b><small>${esc(t[r.course_id]||"Course")} · ${esc(fmtDT(r.created_at))}</small></span><b style="color:var(--green)">+${money(r.amount_kobo)}</b></div>`).join("")||"<p class='note'>No earnings yet. Upload a course or share an affiliate link.</p>";}
+$("req").onclick=async()=>{
+ const kobo=Math.round((+$("amt").value)*100);
+ if(!(kobo>0))return toast("Enter an amount.",false);
+ $("req").disabled=true;
+ const {error}=await sb.rpc("request_withdrawal",{p_amount:kobo,p_bank:$("bank").value,p_acct:$("acct").value.trim(),p_name:$("aname").value});
+ $("req").disabled=false;
+ if(error)return toast(error.message,false);
+ toast("Withdrawal requested. The admin will pay you to your account.");$("amt").value="";load();};
+boot({page:"earnings",paid:true}).then(c=>{if(!c)return;U=c.user;
+ $("minn").textContent="Minimum withdrawal: ₦"+Number((c.settings.marketplace||{}).min_withdrawal_naira||1000).toLocaleString()+". Payouts are sent manually by the admin.";load();});
+</script></body></html>

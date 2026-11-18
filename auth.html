@@ -106,8 +106,9 @@ function setMode(m){
 $("tLogin").onclick=()=>setMode("login");
 $("tSignup").onclick=()=>setMode("signup");
 
+function nextUrl(){const n=new URLSearchParams(location.search).get("next");return n&&/^[\w\-]+\.html(\?[\w=&%.\-]*)?$/.test(n)?n:"dashboard.html";}
 function showUser(user){
-  if(user){ location.replace("dashboard.html"); return; }
+  if(user){ location.replace(nextUrl()); return; }
   const loggedIn = !!user;
   if(loggedIn) $("verifyView").classList.add("hide");
   $("authView").classList.toggle("hide", loggedIn || !$("verifyView").classList.contains("hide"));
@@ -202,6 +203,7 @@ $("vBack").onclick=()=>{ $("verifyView").classList.add("hide"); $("authView").cl
 $("out").onclick=async()=>{ await sb.auth.signOut(); showUser(null); setMode("login"); };
 
 if(location.search.indexOf("signup")>-1) setMode("signup");
+if(location.search.indexOf("suspended")>-1) say("Your account has been suspended for breaking the rules. Contact support.","err");
 sb.auth.getSession().then(({data})=>showUser(data.session&&data.session.user));
 sb.auth.onAuthStateChange((_e,session)=>showUser(session&&session.user));
 </script>
