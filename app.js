@@ -1,7 +1,7 @@
 const CFG={
   SUPABASE_URL:"https://ovhlchyuzmdtqpfeyngg.supabase.co",
   SUPABASE_KEY:"sb_publishable_ixL06NJ_XsulKFDMvgShAA_HzbVSnWI",
-  PAYSTACK_PUBLIC_KEY:"pk_test_REPLACE_WITH_YOUR_PUBLIC_KEY", // Paystack PUBLIC key only (never the secret key)
+  PAYSTACK_PUBLIC_KEY:"pk_live_14b97bd56ab3ad90001c83c1ce5a0fb7c0a2283e", // Paystack PUBLIC key only (never the secret key)
   AMOUNT_KOBO:200000, // ₦2,000
   DAYS:30
 };
