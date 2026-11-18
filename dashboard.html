@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--p:#7c3aed;--p2:#a855f7;--pl:#c4a5ff;--bg:#f5f1ff;--card:#fff;--ink:#1c1233;--muted:#5b5575;--line:#e6dcff;--gold:#ffc329;--green:#22c55e}
+@media (prefers-color-scheme:dark){:root{--bg:#0e0720;--card:#1a0f36;--ink:#f3edff;--muted:#b9aedb;--line:#33215f}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Poppins,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;min-height:100vh}
+a{color:inherit;text-decoration:none}
+.top{background:radial-gradient(circle at 80% 0,#4c1d95,#12072a 60%,#07040f);color:#fff;padding:14px 20px}
+.bar{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.logo i{font-style:normal;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--p2),var(--p));display:grid;place-items:center;font-size:14px}
+.logo b{color:var(--pl)}
+.me{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:14px}
+.av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--p2));display:grid;place-items:center;font-weight:700}
+.btn{border:0;cursor:pointer;font:600 13px Poppins,sans-serif;padding:10px 18px;border-radius:999px;background:linear-gradient(90deg,var(--p),var(--p2));color:#fff;display:inline-block}
+.btn.ghost{background:transparent;border:1.5px solid #ffffff88}
+.btn.gold{background:var(--gold);color:#2b1a00}
+main{max-width:1100px;margin:0 auto;padding:24px 20px 50px}
+.hello{background:linear-gradient(120deg,#2a0e63,#7c3aed);color:#fff;border-radius:24px;padding:26px;margin-bottom:20px}
+.hello h1{font-size:clamp(22px,4vw,30px)}.hello p{color:#e3d8ff;margin-top:4px;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+.stat b{display:block;font-size:26px;color:var(--p)}.stat span{font-size:13px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+h2{font-size:18px;margin-bottom:14px}
+.course{padding:14px 0;border-top:1px solid var(--line)}.course:first-of-type{border:0}
+.course .row{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:8px;gap:10px}
+.course small{color:var(--muted);font-weight:400}
+.track{height:9px;border-radius:9px;background:var(--line);overflow:hidden}
+.track i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--p),var(--p2))}
+.live{background:linear-gradient(135deg,#1b0b3f,#5b21b6);color:#fff;border:0}
+.dot{display:inline-block;background:#e11d48;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-left:6px}
+.live p{color:#dcd0f7;font-size:14px;margin:8px 0 14px}
+.side{display:grid;gap:20px;align-content:start}
+dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
+dt{color:var(--muted)}dd{font-weight:500;word-break:break-word}
+.ref{display:flex;gap:8px;margin-top:10px}
+.ref input{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:13px Poppins,sans-serif}
+.note{font-size:12px;color:var(--muted);margin-top:18px;text-align:center}
+#load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);font-weight:600;z-index:9}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+@media(max-width:820px){.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="load">Loading your dashboard…</div>
+
+<header class="top"><div class="bar">
+<a class="logo" href="index.html"><i>▶</i>Creator<b>Launch</b></a>
+<div class="me"><span class="av" id="av">U</span><span id="nm"></span><button class="btn ghost" id="out" type="button">Log out</button></div>
+</div></header>
+
+<main>
+<section class="hello">
+<h1 id="hi">Welcome back!</h1>
+<p>Pick up where you left off and keep building your channel.</p>
+</section>
+
+<section class="stats">
+<div class="card stat"><b>3</b><span>Courses enrolled</span></div>
+<div class="card stat"><b>24</b><span>Lessons completed</span></div>
+<div class="card stat"><b>2</b><span>Live classes attended</span></div>
+<div class="card stat"><b>$0</b><span>Affiliate earnings</span></div>
+</section>
+
+<div class="grid">
+<section class="card">
+<h2>My Courses</h2>
+<div class="course"><div class="row"><span>YouTube Automation: Zero to Profit</span><small>65%</small></div><div class="track"><i style="width:65%"></i></div></div>
+<div class="course"><div class="row"><span>AI Tools &amp; Workflows</span><small>30%</small></div><div class="track"><i style="width:30%"></i></div></div>
+<div class="course"><div class="row"><span>Affiliate Marketing Basics</span><small>10%</small></div><div class="track"><i style="width:10%"></i></div></div>
+<a class="btn" href="index.html" style="margin-top:14px">Browse more courses</a>
+</section>
+
+<div class="side">
+<section class="card live">
+<h2>Next Live Class <span class="dot">● LIVE</span></h2>
+<p>Every Saturday, 8:00 PM (WAT)<br><b id="cd"></b></p>
+<a class="btn gold" href="#">Save Your Spot →</a>
+</section>
+
+<section class="card">
+<h2>My Profile</h2>
+<dl>
+<dt>Name</dt><dd id="pName">—</dd>
+<dt>Email</dt><dd id="pEmail">—</dd>
+<dt>Birthday</dt><dd id="pDob">—</dd>
+<dt>Joined</dt><dd id="pJoin">—</dd>
+</dl>
+</section>
+
+<section class="card">
+<h2>Affiliate Link</h2>
+<p style="font-size:13px;color:var(--muted)">Share this link and earn up to 50% commission.</p>
+<div class="ref"><input id="ref" readonly><button class="btn" id="cp" type="button">Copy</button></div>
+</section>
+</div>
+</div>
+<p class="note">Course progress and stats shown here are sample data until you connect real course tables.</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const sb = supabase.createClient("https://ovhlchyuzmdtqpfeyngg.supabase.co","sb_publishable_ixL06NJ_XsulKFDMvgShAA_HzbVSnWI");
+const $ = id => document.getElementById(id);
+const fmt = d => d ? new Date(d).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}) : "—";
+
+(async function(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ location.replace("auth.html"); return; }
+  const u = session.user, meta = u.user_metadata || {};
+  let prof = null;
+  try{
+    const r = await sb.from("profiles").select("full_name,email,date_of_birth,created_at").eq("id",u.id).maybeSingle();
+    prof = r.data;
+  }catch(e){}
+  const name = (prof && prof.full_name) || meta.full_name || u.email.split("@")[0];
+  const dob  = (prof && prof.date_of_birth) || meta.date_of_birth;
+  $("hi").textContent = "Welcome back, " + name.split(" ")[0] + "! 👋";
+  $("nm").textContent = name;
+  $("av").textContent = name.charAt(0).toUpperCase();
+  $("pName").textContent = name;
+  $("pEmail").textContent = u.email;
+  $("pDob").textContent = dob ? fmt(dob + "T00:00:00") : "—";
+  $("pJoin").textContent = fmt(u.created_at);
+  $("ref").value = location.origin.startsWith("http") ? location.origin + "/auth.html?signup&ref=" + u.id.slice(0,8) : "auth.html?signup&ref=" + u.id.slice(0,8);
+  $("load").remove();
+})();
+
+$("cp").onclick = async () => {
+  try{ await navigator.clipboard.writeText($("ref").value); }catch(e){ $("ref").select(); document.execCommand("copy"); }
+  $("cp").textContent = "Copied!"; setTimeout(()=>$("cp").textContent="Copy",1500);
+};
+
+$("out").onclick = async () => { await sb.auth.signOut(); location.replace("auth.html"); };
+sb.auth.onAuthStateChange((ev)=>{ if(ev==="SIGNED_OUT") location.replace("auth.html"); });
+
+// Countdown to next Saturday 8:00 PM WAT (UTC+1 = 19:00 UTC)
+function tick(){
+  const n=new Date(), t=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),19,0,0));
+  t.setUTCDate(t.getUTCDate()+((6-t.getUTCDay()+7)%7));
+  if(t<n) t.setUTCDate(t.getUTCDate()+7);
+  const s=Math.floor((t-n)/1000), d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
+  $("cd").textContent = "Starts in " + d + "d " + h + "h " + m + "m";
+}
+tick(); setInterval(tick,30000);
+</script>
+</body>
+</html>
