@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live chat – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<a href="live.html" class="note">← All classes</a>
+<h1 id="ct" style="margin-top:6px">Live chat</h1><p class="sub" id="cs"></p>
+<div id="ctl" class="acts" hidden style="margin-bottom:14px"><button class="btn sm" data-m="open" type="button">Open chat</button><button class="btn sm red" data-m="closed" type="button">Close chat</button><button class="btn sm" data-m="auto" type="button">Auto (opens at start time)</button></div>
+<div id="err" class="msg err" hidden></div>
+<div class="card chat" style="padding:14px"><div class="msgs" id="msgs"></div>
+<div class="send"><input id="inp" maxlength="500" placeholder="Type a message…" autocomplete="off"><button class="btn" id="go" type="button">Send</button></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+const when=iso=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+const chatOpen=x=>x.chat_mode==="open"||(x.chat_mode==="auto"&&new Date(x.starts_at)<=new Date());
+let U,X,ADM=false,busy=false;
+const err=m=>{const e=$("err");e.textContent=m;e.hidden=!m;};
+function node(m){const d=document.createElement("div");d.dataset.id=m.id;
+ d.className="bub"+(m.user_id===U.id?" me":"")+(m.is_host?" host":"");
+ d.innerHTML=`<div class="who">${esc(m.user_name)}${m.is_host?' <span class="tag gold">Host</span>':""} <small>${esc(new Date(m.created_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}))}</small>${ADM?`<button class="x" data-del="${m.id}" title="Delete" type="button">✕</button>`:""}</div><div>${esc(m.body)}</div>`;return d;}
+function sync(list){
+ const box=$("msgs"),near=box.scrollHeight-box.scrollTop-box.clientHeight<80,ids=new Set(list.map(m=>m.id));
+ [...box.children].forEach(n=>{if(!ids.has(+n.dataset.id))n.remove();});
+ const have=new Set([...box.children].map(n=>+n.dataset.id));
+ list.forEach(m=>{if(!have.has(m.id))box.appendChild(node(m));});
+ if(near||!have.size)box.scrollTop=box.scrollHeight;}
+async function loadMsgs(){
+ const {data,error}=await sb.from("chat_messages").select("*").eq("class_id",X.id).order("id",{ascending:false}).limit(200);
+ if(error)return err(error.message);err("");sync((data||[]).reverse());}
+function applyState(){
+ const open=chatOpen(X),can=open||ADM;
+ $("inp").disabled=!can;$("go").disabled=!can;
+ $("inp").placeholder=can?"Type a message…":"Chat is closed";
+ $("cs").textContent=open?"🟢 Chat is open":X.chat_mode==="closed"?"🔒 The host has closed the chat":"⏳ Chat opens when the class starts: "+when(X.starts_at);}
+async function refreshClass(){const {data}=await sb.from("live_classes").select("*").eq("id",X.id).maybeSingle();if(data){X=data;applyState();}}
+async function send(){
+ const body=$("inp").value.trim();if(!body||busy)return;busy=true;
+ const {error}=await sb.rpc("send_chat_message",{p_class:X.id,p_body:body});busy=false;
+ if(error)return err(error.message);err("");$("inp").value="";loadMsgs();}
+boot({page:"live",paid:true}).then(async c=>{
+ if(!c)return;U=c.user;ADM=c.adm;
+ const id=new URLSearchParams(location.search).get("c");
+ if(!/^[0-9a-f-]{36}$/i.test(id||""))return $("ct").textContent="Class not found.";
+ const {data}=await sb.from("live_classes").select("*").eq("id",id).maybeSingle();
+ if(!data)return $("ct").textContent="Class not found.";
+ X=data;$("ct").textContent=X.title;$("ctl").hidden=!ADM;applyState();loadMsgs();
+ $("go").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter")send();};
+ $("ctl").onclick=async e=>{const m=e.target.dataset.m;if(!m)return;
+  const {error}=await sb.from("live_classes").update({chat_mode:m}).eq("id",X.id);if(error)return err(error.message);refreshClass();};
+ $("msgs").onclick=async e=>{const d=e.target.dataset.del;if(!d)return;
+  const {error}=await sb.from("chat_messages").delete().eq("id",d);if(error)return err(error.message);loadMsgs();};
+ sb.channel("chat-"+id).on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_messages",filter:"class_id=eq."+id},()=>loadMsgs()).subscribe();
+ setInterval(loadMsgs,5000);setInterval(refreshClass,8000);setInterval(applyState,5000);});
+</script></body></html>

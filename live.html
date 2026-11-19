@@ -5,16 +5,24 @@
 <link rel="stylesheet" href="app.css"></head>
 <body><div id="load">Loading…</div>
 <div id="view" hidden>
-<h1>Live Classes</h1><p class="sub">Learn directly with experts. Times are shown in your local time.</p><div id="list"><div class="card">Loading…</div></div>
+<h1>Live Classes</h1><p class="sub">Learn directly with experts. Times are shown in your local time. When a class starts, its chat room opens here.</p><div id="list"><div class="card">Loading…</div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-const when=(iso,tz)=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+const when=iso=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+const chatOpen=x=>x.chat_mode==="open"||(x.chat_mode==="auto"&&new Date(x.starts_at)<=new Date());
 boot({page:"live",paid:true}).then(async c=>{
  if(!c)return;
- const since=new Date(Date.now()-2*3600e3).toISOString();
+ const since=new Date(Date.now()-24*3600e3).toISOString();
  const {data}=await sb.from("live_classes").select("*").eq("published",true).gte("starts_at",since).order("starts_at");
- $("list").innerHTML=(data&&data.length)?data.map(x=>`<section class="card live"><h2>${esc(x.title)}</h2><p>${esc(x.description)}<br><b>${esc(when(x.starts_at))}</b><br><small>WAT: ${esc(new Date(x.starts_at).toLocaleString("en-GB",{timeZone:"Africa/Lagos",dateStyle:"medium",timeStyle:"short"}))}</small></p>
-  ${x.link?`<a class="btn gold" href="${esc(safeUrl(x.link))}" target="_blank" rel="noopener">Join class →</a>`:""}</section>`).join(""):'<div class="card">No live classes scheduled yet.</div>';});
+ function draw(){
+  $("list").innerHTML=(data&&data.length)?data.map(x=>{
+   const started=new Date(x.starts_at)<=new Date(),open=chatOpen(x);
+   const chat=open?`<a class="btn" href="chat.html?c=${x.id}">💬 Join live chat</a>`
+     :started||x.chat_mode==="closed"?`<a class="btn sm ghost" style="border-color:#fff8" href="chat.html?c=${x.id}">View chat (closed)</a>`
+     :`<span class="note" style="color:#dcd0f7">Chat opens when the class starts</span>`;
+   return `<section class="card live"><h2>${esc(x.title)} ${started?'<span class="tag red">LIVE / STARTED</span>':""}</h2><p>${esc(x.description)}<br><b>${esc(when(x.starts_at))}</b><br><small>WAT: ${esc(new Date(x.starts_at).toLocaleString("en-GB",{timeZone:"Africa/Lagos",dateStyle:"medium",timeStyle:"short"}))}</small></p>
+   <div class="acts">${x.link?`<a class="btn gold" href="${esc(safeUrl(x.link))}" target="_blank" rel="noopener">Join class →</a>`:""}${chat}</div></section>`}).join(""):'<div class="card">No live classes scheduled yet.</div>';}
+ draw();setInterval(draw,30000);});
 </script></body></html>

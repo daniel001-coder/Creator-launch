@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automation – CreatorLaunch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="load">Loading…</div>
+<div id="view" hidden>
+<h1>Automation</h1><p class="sub">Workflows, tools and templates to run your channel faster.</p>
+<div id="chips" class="chips"></div><div id="grid" class="grid"><div class="card">Loading…</div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+<script>
+boot({page:"automation",paid:true}).then(async c=>{
+ if(!c)return;
+ const {data}=await sb.from("automation_items").select("*").eq("published",true).order("created_at");
+ const all=data||[],cats=["All",...new Set(all.map(x=>x.category))];let cur="All";
+ function draw(){
+  $("chips").innerHTML=cats.map(k=>`<button type="button" data-k="${esc(k)}" class="${k===cur?"on":""}">${esc(k)}</button>`).join("");
+  const list=all.filter(x=>cur==="All"||x.category===cur);
+  $("grid").innerHTML=list.map(x=>{const st=(x.steps||"").split("\n").map(s=>s.trim()).filter(Boolean);
+   return `<div class="card" style="margin:0"><span class="tag">${esc(x.category)}</span><h2 style="margin-top:8px">${esc(x.title)}</h2><p class="sub" style="margin-bottom:0">${esc(x.description)}</p>
+   ${st.length?`<ol class="st">${st.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>`:""}
+   ${x.link?`<a class="btn sm" href="${esc(safeUrl(x.link))}" target="_blank" rel="noopener">Open →</a>`:""}</div>`}).join("")||'<div class="card">Nothing here yet. Check back soon.</div>';}
+ $("chips").onclick=e=>{if(e.target.dataset.k){cur=e.target.dataset.k;draw();}};draw();});
+</script></body></html>

@@ -7,23 +7,37 @@
 <div id="view" hidden>
 <section class="card hello"><h1 id="hi">Welcome back!</h1><p class="sub">Keep building your channel today.</p></section>
 <div class="stats"><div class="card stat"><b>Active</b><span>Account status</span></div><a class="card stat" href="earnings.html"><b id="bal">–</b><span>Available earnings</span></a><div class="card stat"><b id="nc">–</b><span>Courses available</span></div><div class="card stat"><b id="nl">–</b><span>Upcoming live classes</span></div></div>
+<div id="adm"></div>
 <section class="card live"><h2>Next Live Class</h2><div id="next"><p>Loading…</p></div><a class="btn gold" href="live.html">All classes →</a></section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-const when=(iso,tz)=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+const when=iso=>new Date(iso).toLocaleString(undefined,{weekday:"long",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+const chatOpen=x=>x.chat_mode==="open"||(x.chat_mode==="auto"&&new Date(x.starts_at)<=new Date());
 boot({page:"dashboard",paid:true}).then(async c=>{
  if(!c)return;
- sb.rpc("my_balance").then(r=>{const x=r.data&&r.data[0];$("bal").textContent=money(x?x.available:0);});
  $("hi").textContent="Welcome back, "+c.name.split(" ")[0]+"! 👋";
+ sb.rpc("my_balance").then(r=>{const x=r.data&&r.data[0];$("bal").textContent=money(x?x.available:0);});
+ if(c.adm){
+  $("adm").innerHTML='<section class="card f"><h2>⚙️ Admin: set the next class</h2><label>Title</label><input id="a_t" value="Live Class"><label>Date &amp; time (your local time)</label><input id="a_w" type="datetime-local"><label>Join link (optional)</label><input id="a_l" placeholder="https://"><button class="btn" id="a_s" type="button" style="margin-top:12px">Set class</button><p class="note">Manage all classes and the chat open/close controls in the Admin panel.</p></section>';
+  $("a_s").onclick=async()=>{
+   if(!$("a_w").value)return alert("Pick a date and time.");
+   const {error}=await sb.from("live_classes").insert({title:$("a_t").value.trim()||"Live Class",starts_at:new Date($("a_w").value).toISOString(),link:$("a_l").value.trim(),published:true});
+   if(error)return alert(error.message);location.reload();};}
+ const since=new Date(Date.now()-3*3600e3).toISOString();
  const [{data:cl},{count}]=await Promise.all([
-  sb.from("live_classes").select("*").eq("published",true).gte("starts_at",new Date().toISOString()).order("starts_at"),
-  sb.from("courses").select("id",{count:"exact",head:true}).eq("published",true)]);
- $("nc").textContent=count||0;$("nl").textContent=(cl||[]).length;
+  sb.from("live_classes").select("*").eq("published",true).gte("starts_at",since).order("starts_at"),
+  sb.from("courses").select("id",{count:"exact",head:true}).eq("published",true).eq("status","approved")]);
+ $("nc").textContent=count||0;
+ $("nl").textContent=(cl||[]).filter(x=>new Date(x.starts_at)>new Date()).length;
  const n=cl&&cl[0];
  if(!n){$("next").innerHTML="<p>No live class scheduled yet. Check back soon.</p>";return;}
- $("next").innerHTML=`<p><b>${esc(n.title)}</b><br>${esc(when(n.starts_at))}<br><b id="cd"></b></p>`;
- function tick(){const s=Math.max(0,Math.floor((new Date(n.starts_at)-new Date())/1000));$("cd").textContent="Starts in "+Math.floor(s/86400)+"d "+Math.floor(s%86400/3600)+"h "+Math.floor(s%3600/60)+"m";}
- tick();setInterval(tick,30000);});
+ function draw(){
+  const started=new Date(n.starts_at)<=new Date(),open=chatOpen(n);
+  const s=Math.max(0,Math.floor((new Date(n.starts_at)-new Date())/1000));
+  $("next").innerHTML=`<p><b>${esc(n.title)}</b><br>${esc(when(n.starts_at))}<br>
+   <b>${started?"🔴 Live now":"Starts in "+Math.floor(s/86400)+"d "+Math.floor(s%86400/3600)+"h "+Math.floor(s%3600/60)+"m"}</b></p>
+   ${open?`<p><a class="btn" href="chat.html?c=${n.id}">💬 Join live chat</a></p>`:started?"<p>Chat is closed for now.</p>":"<p>The chat opens when the class starts.</p>"}`;}
+ draw();setInterval(draw,30000);});
 </script></body></html>

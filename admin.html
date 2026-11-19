@@ -7,7 +7,7 @@
 <div id="view" hidden>
 <h1>Admin Panel</h1><p class="sub">Everything users see on the site is controlled from here.</p>
 <div id="toast" class="msg ok" hidden></div>
-<div class="tabs"><button data-tab="settings" class="on">Settings</button><button data-tab="live">Live classes</button><button data-tab="courses">Courses</button><button data-tab="users">Users</button><button data-tab="pay">Withdrawals</button></div>
+<div class="tabs"><button data-tab="settings" class="on">Settings</button><button data-tab="live">Live classes</button><button data-tab="courses">Courses</button><button data-tab="users">Users</button><button data-tab="pay">Withdrawals</button><button data-tab="auto">Automation</button></div>
 
 <div id="t_settings"><section class="card f"><h2>Activation payment</h2>
 <label>Fee (₦)</label><input id="s_amt" type="number" min="100"><label>Access length (days)</label><input id="s_days" type="number" min="1">
@@ -37,12 +37,19 @@
 
 <div id="t_users" hidden><section class="card f"><input id="u_q" placeholder="Search name or email…"></section><div id="u_list"></div></div>
 
+<div id="t_auto" hidden><section class="card f"><h2 id="a_h">Add automation item</h2>
+<label>Title</label><input id="a_title"><label>Category (e.g. Workflow, Tool, Template)</label><input id="a_cat" value="General"><label>Description</label><textarea id="a_desc" rows="2"></textarea>
+<label>Steps, one per line (optional)</label><textarea id="a_steps" rows="5"></textarea><label>Link (optional)</label><input id="a_link" placeholder="https://">
+<label><input id="a_pub" type="checkbox" checked>Published</label>
+<button class="btn" id="a_save" type="button" style="margin-top:14px">Save item</button> <button class="btn sm red" id="a_cancel" type="button" hidden>Cancel edit</button></section>
+<section class="card"><h2>Automation items</h2><div id="a_list"></div></section></div>
+
 <div id="t_pay" hidden><section class="card"><h2>Withdrawal requests</h2><p class="note">Pay the user from your bank or Paystack dashboard first, then tap “Mark paid”.</p><div id="w_list"></div></section></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 <script>
-const $$=s=>document.querySelectorAll(s),tabs=["settings","live","courses","users","pay"];
+const $$=s=>document.querySelectorAll(s),tabs=["settings","live","courses","users","pay","auto"];
 const toast=(m,ok=true)=>{const e=$("toast");e.className="msg "+(ok?"ok":"err");e.textContent=m;e.hidden=false;scrollTo(0,0);setTimeout(()=>e.hidden=true,4000);};
 const loc=iso=>{const d=new Date(iso);return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
 const show=t=>{tabs.forEach(x=>$("t_"+x).hidden=x!==t);$$("[data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));};
@@ -63,11 +70,11 @@ boot({page:"admin",paid:false,admin:true}).then(c=>{
    {key:"announcement",value:{show:$("s_show").checked,text:$("s_ann").value.trim()}},
    {key:"marketplace",value:{platform_fee_percent:fee,min_withdrawal_naira:min}}]);
   toast(error?error.message:"Settings saved.",!error);};
- loadLive();loadCourses();loadUsers();loadW();});
+ loadLive();loadCourses();loadUsers();loadW();loadAuto();});
 
 /* ---- live classes (add as many as you like) ---- */
 async function loadLive(){const {data}=await sb.from("live_classes").select("*").order("starts_at");LIVE=data||[];
- $("l_list").innerHTML=LIVE.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${esc(fmtDT(x.starts_at))}</small></span><span class="acts"><button class="btn sm" data-le="${x.id}">Edit</button><button class="btn sm red" data-ld="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No classes yet.</p>";}
+ $("l_list").innerHTML=LIVE.map(x=>`<div class="item"><span><b>${esc(x.title)}</b>${x.published?"":" (hidden)"}<small>${esc(fmtDT(x.starts_at))}</small><small>Chat: <b>${x.chat_mode==="open"?"forced open":x.chat_mode==="closed"?"closed":"auto (opens at start time)"}</b></small></span><span class="acts"><button class="btn sm" data-cm="open" data-id="${x.id}">Open chat</button><button class="btn sm red" data-cm="closed" data-id="${x.id}">Close chat</button>${x.chat_mode!=="auto"?`<button class="btn sm" data-cm="auto" data-id="${x.id}">Auto</button>`:""}<button class="btn sm" data-le="${x.id}">Edit</button><button class="btn sm red" data-ld="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>No classes yet.</p>";}
 $("l_save").onclick=async()=>{
  if(!$("l_title").value.trim()||!$("l_when").value)return toast("Title and date/time are required.",false);
  const row={title:$("l_title").value.trim(),description:$("l_desc").value.trim(),starts_at:new Date($("l_when").value).toISOString(),link:$("l_link").value.trim(),published:$("l_pub").checked};
@@ -76,6 +83,7 @@ $("l_save").onclick=async()=>{
 function resetL(){editL=null;["l_title","l_desc","l_when","l_link"].forEach(i=>$(i).value="");$("l_pub").checked=true;$("l_h").textContent="Add live class";$("l_cancel").hidden=true;}
 $("l_cancel").onclick=resetL;
 $("l_list").onclick=async e=>{const b=e.target;
+ if(b.dataset.cm){const {error}=await sb.from("live_classes").update({chat_mode:b.dataset.cm}).eq("id",b.dataset.id);toast(error?error.message:"Chat updated.",!error);loadLive();return;}
  if(b.dataset.le){const x=LIVE.find(y=>y.id===b.dataset.le);editL=x.id;$("l_title").value=x.title;$("l_desc").value=x.description||"";$("l_when").value=loc(x.starts_at);$("l_link").value=x.link||"";$("l_pub").checked=x.published;$("l_h").textContent="Edit live class";$("l_cancel").hidden=false;scrollTo(0,0);}
  if(b.dataset.ld&&confirm("Delete this class?")){const {error}=await sb.from("live_classes").delete().eq("id",b.dataset.ld);if(error)toast(error.message,false);loadLive();}};
 
@@ -139,4 +147,19 @@ $("w_list").onclick=async e=>{const d=e.target.dataset;if(!d.wp&&!d.wr)return;
  if(d.wp&&!confirm("Confirm you have already sent this money?"))return;
  const {error}=await sb.rpc("admin_process_withdrawal",{p_id:d.wp||d.wr,p_status:d.wp?"paid":"rejected",p_note:note});
  toast(error?error.message:"Updated.",!error);loadW();};
+
+/* ---- automation ---- */
+let AUTO=[],editA=null;
+async function loadAuto(){const {data}=await sb.from("automation_items").select("*").order("created_at");AUTO=data||[];
+ $("a_list").innerHTML=AUTO.map(x=>`<div class="item"><span><b>${esc(x.title)}</b> <span class="tag">${esc(x.category)}</span>${x.published?"":" (hidden)"}</span><span class="acts"><button class="btn sm" data-ae="${x.id}">Edit</button><button class="btn sm red" data-ad="${x.id}">Delete</button></span></div>`).join("")||"<p class='note'>Nothing yet.</p>";}
+function resetA(){editA=null;["a_title","a_desc","a_steps","a_link"].forEach(i=>$(i).value="");$("a_cat").value="General";$("a_pub").checked=true;$("a_h").textContent="Add automation item";$("a_cancel").hidden=true;}
+$("a_cancel").onclick=resetA;
+$("a_save").onclick=async()=>{
+ if(!$("a_title").value.trim())return toast("Title is required.",false);
+ const row={title:$("a_title").value.trim(),category:$("a_cat").value.trim()||"General",description:$("a_desc").value.trim(),steps:$("a_steps").value.trim(),link:$("a_link").value.trim(),published:$("a_pub").checked};
+ const {error}=editA?await sb.from("automation_items").update(row).eq("id",editA):await sb.from("automation_items").insert(row);
+ if(error)return toast(error.message,false);toast("Saved.");resetA();loadAuto();};
+$("a_list").onclick=async e=>{const d=e.target.dataset;
+ if(d.ae){const x=AUTO.find(y=>y.id===d.ae);editA=x.id;$("a_title").value=x.title;$("a_cat").value=x.category;$("a_desc").value=x.description||"";$("a_steps").value=x.steps||"";$("a_link").value=x.link||"";$("a_pub").checked=x.published;$("a_h").textContent="Edit automation item";$("a_cancel").hidden=false;scrollTo(0,0);}
+ if(d.ad&&confirm("Delete this item?")){const {error}=await sb.from("automation_items").delete().eq("id",d.ad);if(error)toast(error.message,false);loadAuto();}};
 </script></body></html>

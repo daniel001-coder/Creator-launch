@@ -9,7 +9,7 @@ const sb=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=d=>d?new Date(d).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}):"—";
-const NAV=[["dashboard","Dashboard","🏠"],["affiliate","Affiliate","🤝"],["courses","My Courses","🎓"],["sell","Sell a Course","📤"],["earnings","Earnings","💰"],["live","Live Classes","📡"],["profile","Profile","👤"],["pay","Subscription","💳"]];
+const NAV=[["dashboard","Dashboard","🏠"],["automation","Automation","🤖"],["affiliate","Affiliate","🤝"],["courses","My Courses","🎓"],["sell","Sell a Course","📤"],["earnings","Earnings","💰"],["live","Live Classes","📡"],["profile","Profile","👤"],["pay","Subscription","💳"]];
 const money=k=>"₦"+(Number(k||0)/100).toLocaleString();
 const fmtDT=d=>d?new Date(d).toLocaleString():"—";
 const coverUrl=p=>p?sb.storage.from("course-covers").getPublicUrl(p).data.publicUrl:"";
